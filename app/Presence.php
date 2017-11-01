@@ -15,5 +15,17 @@ class Presence extends Model
     protected $primaryKey = 'id';
     protected $connection = 'mongodb';
     protected $collection = 'prescence';
+    protected $fillable = [
+        "_id",
+        "timeStamp",
+        "createdAt",
+        "amountOfUsers",
+        "externSensor",
+        "alert"
+    ];
+
+    protected $hidden = [
+        "internSensor"
+    ];
 
 }
