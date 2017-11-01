@@ -13,10 +13,15 @@ use Illuminate\Http\Request;
 |
 */
 
-//Route::middleware('auth:api')->get('/user', function (Request $request) {
-//    return $request->user();
-//});
+use App\Presence as Presence;
+use App\Http\Controllers\PresenceController;
 
-Route::middleware('auth:api')->get('/prescence' , function(Request $request) {
-   return DB::table('Prescence')->get();
+
+Route::post('/presence/getRange/', 'PresenceController@getRange');
+
+Route::get('/presence/{timeStamp}' , 'PresenceController@show');
+
+Route::get('/presence/all' , function(Request $request) {
+   return Presence::all();
 });
+
