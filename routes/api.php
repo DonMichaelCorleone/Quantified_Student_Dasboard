@@ -20,8 +20,3 @@ use App\Http\Controllers\PresenceController;
 Route::post('/presence/getRange/', 'PresenceController@getRange');
 
 Route::get('/presence/{timeStamp}' , 'PresenceController@show');
-
-Route::get('/presence/all' , function(Request $request) {
-   return Presence::all();
-});
-
