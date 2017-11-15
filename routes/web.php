@@ -14,7 +14,7 @@
 use App\Presence;
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('welcome',['titles' => ['presence','test','test','test','test','test','bar','bar','bar']]);
 });
 
 Route::get('/presence' , function(Request $request) {

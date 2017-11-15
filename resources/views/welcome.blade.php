@@ -4,92 +4,204 @@
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-
+        <meta name="csrf-token" content="{{ csrf_token() }}">
         <title>Laravel</title>
-
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+        <script src="https://d3js.org/d3.v4.min.js"></script>
         <!-- Fonts -->
         <link href="https://fonts.googleapis.com/css?family=Raleway:100,600" rel="stylesheet" type="text/css">
 
         <!-- Styles -->
         <style>
+            .line {
+                fill: none;
+                stroke: steelblue;
+                stroke-width: 2px;
+            }
+            .panelBody text {
+                fill: white;
+                font: 10px sans-serif;
+                text-anchor: end;
+
+            }
+            .axis text {
+                font: 10px sans-serif;
+            }
+
+            .axis path,
+            .axis line {
+                shape-rendering: crispEdges;
+            }
+            .axis *{
+                fill: white;
+            }
+
             html, body {
                 background-color: #fff;
-                color: #636b6f;
+                color: #101214;
                 font-family: 'Raleway', sans-serif;
                 font-weight: 100;
                 height: 100vh;
                 margin: 0;
             }
-
-            .full-height {
-                height: 100vh;
+            .panelBody {
+                min-height: inherit;
             }
+            .panelBody  h1 {
+                height: 100%;
+                width: 100%;
+                font-weight: bold;
 
-            .flex-center {
-                align-items: center;
-                display: flex;
-                justify-content: center;
+
+             }
+            .triangle{
+                width: 0;
+                height: 0;
+                border-style: solid;
+                border-width: 0 15px 30px 15px;
+                margin-left: 15px;
+                display: inline;
+                padding-bottom: -15px;
             }
-
-            .position-ref {
-                position: relative;
+            .green {
+                border-color: transparent transparent #2b9432 transparent;
             }
-
-            .top-right {
-                position: absolute;
-                right: 10px;
-                top: 18px;
+            .red {
+                border-color: transparent transparent darkred transparent;
             }
-
-            .content {
+            .dashboard-element{
+                border-color: #292929;
+                border-width: 4px;
+                background-color: #222222;
+                color: white;
+                margin-bottom: 20px;
                 text-align: center;
+                height: inherit;
             }
-
+            .container{
+                min-height: 1500px!important;
+            }
+            .row-header{
+                border-style: solid;
+                height:60px;
+                line-height: 50px;
+                padding-left: 20px;
+                font-family: 'Raleway', sans-serif;
+                font-weight: bold;
+                font-size: large;
+            }
+            .row-dashboard small{
+                height: 200px;
+            }
+            .row-dashboard normal{
+                height: 250px;
+            }
+            .col{
+                padding: 0px 0px 0px 0px;
+            }
             .title {
-                font-size: 84px;
+                background-color: #222222;
+                color: white;
+                height:30px;
+                font-weight: bold;
+                line-height: 25px;
             }
-
-            .links > a {
-                color: #636b6f;
-                padding: 0 25px;
-                font-size: 12px;
-                font-weight: 600;
-                letter-spacing: .1rem;
-                text-decoration: none;
-                text-transform: uppercase;
+            .tile {
+                background-color: #292929;
+                margin-right: 2px;
+                margin-left: 2px;
             }
-
-            .m-b-md {
-                margin-bottom: 30px;
+            #app {
+                background-color:black;
+            }
+            .small {
+                min-height:200px;
             }
         </style>
     </head>
     <body>
-        <div class="flex-center position-ref full-height">
-            @if (Route::has('login'))
-                <div class="top-right links">
-                    @if (Auth::check())
-                        <a href="{{ url('/home') }}">Home</a>
-                    @else
-                        <a href="{{ url('/login') }}">Login</a>
-                        <a href="{{ url('/register') }}">Register</a>
-                    @endif
-                </div>
-            @endif
-
             <div class="content">
-                <div class="title m-b-md">
-                    Laravel
-                </div>
+                <div id="app">
+                    <div class="container">
+                        <div class="row row-header dashboard-element">
+                                Quantified Student Dashboard
+                        </div>
+                        <div class="row row-dashboard small">
 
-                <div class="links">
-                    <a href="https://laravel.com/docs">Documentation</a>
-                    <a href="https://laracasts.com">Laracasts</a>
-                    <a href="https://laravel-news.com">News</a>
-                    <a href="https://forge.laravel.com">Forge</a>
-                    <a href="https://github.com/laravel/laravel">GitHub</a>
+
+                            <div class="col tile dashboard-element">
+                                <div  class="panelBody">
+                                <div class="title">Time</div>
+                                <h1 id="timer"></h1>
+                                </div>
+                            </div>
+                            {{--Presence Tile--}}
+                            <div class="col tile dashboard-element">
+                                <div class="title">Current presence R1</div>
+                                <div  class="panelBody" v-if="currentPresenceR1 > pastHourPresenceR1">
+                                    <h1>@{{ currentPresenceR1 }}</h1>
+                                    <div class="row">
+                                        <div class="col">
+                                            <div class="triangle green"></div>
+                                        </div>
+                                        <div class="col">
+                                            <h1>@{{ pastHourPresenceR1 }}</h1>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <div  class="panelBody" v-else-if="currentPresenceR1 == pastHourPresenceR1">
+                                    <h1>@{{ currentPresenceR1 }}</h1>
+                                </div>
+
+                                <div  class="panelBody" v-else="currentPresenceR1 < pastHourPresenceR1">
+                                    <h1>@{{ currentPresenceR1 }}</h1>
+                                    <div class="triangle red"></div>
+                                    <h1>@{{ pastHourPresenceR1 }}</h1>
+                                </div>
+                            </div>
+
+
+                            <div class="col tile dashboard-element">
+                                <div class="title">Predicted amount for coming hour</div>
+                                <div class="panelBody"><h1>@{{ comingHourPredictionObj.amountOfUsers }}</h1></div>
+                            </div>
+                            <div class="col tile dashboard-element">
+                                <div class="title">Weather</div>
+                                <div class="panelBody">
+                                    <h1></h1>
+                                </div>
+                            </div>
+
+
+                        </div>
+                    <div class="row row-dashboard small">
+                        <div class="col tile dashboard-element">
+
+                        </div>
+                        <div class="col tile dashboard-element">
+                            <div class="title">Alert</div>
+                        </div>
+                        <div class="col tile dashboard-element">
+                            <div class="title">Accuracy</div>
+                            <div class="panelBody"><h1>@{{ comingHourPredictionObj.accuracy }}</h1></div>
+                        </div>
+                        <div class="col tile dashboard-element">
+
+                        </div>
+
+                    </div>
+                        <div class="row row-dashboard small">
+                            <div class="col tile dashboard-element">
+                                <div class="title">Presence today</div>
+                                <div class="panelBody" id="presence_actual"></div>
+                            </div>
+                        </div>
+                        </div>
+
                 </div>
             </div>
-        </div>
     </body>
+    <script src="js/app.js"></script>
 </html>
