@@ -126,7 +126,7 @@
     <body>
             <div class="content">
                 <div id="app">
-                    <div class="container">
+                    <div class="container" style="max-height: 100%; max-width: 1530px!important;">
                         <div class="row row-header dashboard-element">
                                 Quantified Student Dashboard
                         </div>
@@ -180,6 +180,13 @@
 
 
                         </div>
+                        {{--<div class="row row-dashboard small">--}}
+                            {{--<div class="col tile dashboard-element"></div>--}}
+                            {{--<div class="col tile dashboard-element"></div>--}}
+                            {{--<div class="col tile dashboard-element"></div>--}}
+                            {{--<div class="col tile dashboard-element"></div>--}}
+                            {{--<div class="col tile dashboard-element"></div>--}}
+                        {{--</div>--}}
                     <div class="row row-dashboard small">
                         <div class="col tile dashboard-element">
                             <div class="title">Diagram toolbox</div>

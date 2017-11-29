@@ -113,10 +113,12 @@ class PresenceController extends Controller
 
     public function getDayAverage(Request $request)
     {
+
         $requestedDay = $request->input('day');
+        $requestedDay = intval($requestedDay);
 
         $cursor = Presence::raw()->aggregate([
-            [ '$match' =>  ["date.weekday"=> 2 ] ],
+            ['$match' => ["date.weekday" => $requestedDay]],
             ['$group' =>
                 ['_id' => '$date.hour',
                     'avg_amount_of_users' => ['$avg' => '$amountOfUsers'],
@@ -131,39 +133,16 @@ class PresenceController extends Controller
                     'avg_light_intensity' => ['$avg' => '$internSensor.lightIntensity']
                 ]
             ],
-            [ '$sort' => ['_id' => 1]]
+            ['$sort' => ['_id' => 1]]
         ]);
 
         $presenceCollection = [];
 
-        foreach ( $cursor as $record ) {
+        foreach ($cursor as $record) {
             $presence = json_encode($record);
-            array_push($presenceCollection, $presence);
-            ;};
+            array_push($presenceCollection, $presence);;
+        };
 
-        var_dump($presenceCollection);
-//        //Iterate your cursor
-//        $current = $cursor;
-//        do {
-//            var_dump($current); //Process each element
-//        } while (!($current = $cursor->count()));
-//            ['$group' =>
-//                ['_id' => '$name', 'count' => ['$sum' => 1]]
-//            ],
-//            ['$sort' => ['count' => -1]],
-//            ['$limit' => 30],
-//            ['$project' => ['_id' => 0,
-//                'text' => '$_id',
-//                'size' => '$count',
-//            ]
-//            ],
-//        ]);
-
-
-
-//        return $result;
-
-        //        return DB::collection('prescence')->where('date.weekday' , intval($requestedDay))->groupBy("date.hour")->get();
+        return $presenceCollection;
     }
-
 }
