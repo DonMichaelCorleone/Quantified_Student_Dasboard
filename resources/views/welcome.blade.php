@@ -121,6 +121,21 @@
                 fill: #ffab00;
                 stroke: #fff;
             }
+
+            #progress {
+                padding: 20px;
+            }
+
+
+            .radial-progress {
+            &__text {
+                 font-family: Arial, sans-serif;
+                 font-size: 2rem;
+                 font-weight: bold;
+             }
+            }
+
+
         </style>
     </head>
     <body>
@@ -203,10 +218,19 @@
                         </div>
                         <div class="col tile dashboard-element">
                             <div class="title">Accuracy</div>
-                            <div class="panelBody"><h1>@{{ comingHourPredictionObj.accuracy }}</h1></div>
+                            <div class="panelBody"
+                                 data-percentage="99"
+                                 data-track-width="12"
+                                 data-track-colour="555555"
+                                 data-fill-colour="00C0FF"
+                                 data-text-colour="00C0FF"
+                                 data-stroke-spacing="4"
+                                 id="accuracy_radial"></div>
+
                         </div>
                         <div class="col tile dashboard-element">
-
+                            <div class="title">Average @{{ currentDay }}</div>
+                            <div class="panelBody" id="presence_average"></div>
                         </div>
 
                     </div>

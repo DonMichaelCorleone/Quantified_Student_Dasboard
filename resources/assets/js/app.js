@@ -8,6 +8,8 @@
 
 require('./bootstrap');
 
+
+var weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', ' thursday', 'friday', 'saturday'];
 /**
  * Next, we will create a fresh Vue application instance and attach it to
  * the page. Then, you may begin adding components to this application
@@ -21,8 +23,11 @@ const app = new Vue({
         pastHourPresenceR1: 0,
         PastMonthRecords: 0,
         comingHour: 0,
+        comingHourPredictionAccuracy: 0,
         comingHourPredictionObj: 0,
         currentHour: 0,
+        currentDay: weekdays[new Date().getDay()],
+        currentDayAverages: 0
 
     },
     created: function () {
@@ -41,7 +46,7 @@ const app = new Vue({
             setInterval(function () {
                 this.startTime();
             }.bind(this), 1000);
-            window.addEventListener("resize", this.renderPresenceGraph);
+            window.addEventListener("resize", this.renderGraphs);
         },
         checkTime: function (i) {
             if (i < 10) {
@@ -69,15 +74,16 @@ const app = new Vue({
             this.getCurrentPresence();
             this.getPastMonthRecords();
             this.getComingHour();
+            this.getCurrentDayAverages();
 
         },
         getSixHourDeviationFromActualTimeData: function () {
 
             let curHour = this.getCurrentHour();
-            let range = 3600 * 6;
+            let range = 3600 * 12;
             let sixHoursFuture = curHour + range;
             let sixHoursPast = curHour - range;
-            this.sixHourDeviationFromActualTimeData = this.getPresenceRange(sixHoursPast, sixHoursFuture)
+            this.sixHourDeviationFromActualTimeData = this.getPresenceRange(sixHoursPast, sixHoursFuture);
 
         },
         getPastMonthRecords: function () {
@@ -102,18 +108,32 @@ const app = new Vue({
         data: function () {
             return data;
         },
+        getCurrentDayAverages: function (day) {
+
+            var context = this;
+
+            context.currentDayAverages = axios.post('api/presence/getDayAverage', {day: day})
+                .then(function (response) {
+                    // context.currentDayAverages = response.data;
+                    return response.data;
+                });
+
+        },
         getComingHour: function () {
 
             let context = this;
             let comingHour = (context.getCurrentHour() + 3600);
 
             //Axios call
-            axios.get('api/presence/' + comingHour)
+            this.comingHour =  axios.get('api/presence/' + comingHour)
                 .then(function (response) {
-                    context.comingHour = response.data[0];
                     context.comingHourPredictionObj = response.data[0].prediction;
                     context.comingHourPredictionObj.accuracy = response.data[0].prediction.accuracy.toFixed(2);
+                    context.comingHourPredictionAccuracy = response.data[0].prediction.accuracy;
+                    return response.data[0];
                 });
+
+            return this.comingHour;
 
         },
         getCurrentPresence: function () {
@@ -130,6 +150,96 @@ const app = new Vue({
                 });
 
         },
+        renderRadialGraph: function () {
+            var context = this;
+            /**********************************************
+             /* Example of how to use d3 to create scalable
+             /* SVG radial progress bars, controllable values
+             /* and colours are passed in via data attributes.
+             ************************************************/
+            var wrapper = document.getElementById('accuracy_radial');
+            var start = 0;
+
+            let accuracy = context.comingHourPredictionAccuracy;
+            console.log(accuracy);
+            var end = accuracy;
+
+            var colours = {
+                fill: '#' + wrapper.dataset.fillColour,
+                track: '#' + wrapper.dataset.trackColour,
+                text: '#' + wrapper.dataset.textColour,
+                stroke: '#' + wrapper.dataset.strokeColour,
+            }
+
+            var radius = 100;
+            var border = wrapper.dataset.trackWidth;
+            var strokeSpacing = wrapper.dataset.strokeSpacing;
+            var endAngle = Math.PI * 2;
+            var formatText = d3.format('.0%');
+            var boxSize = radius * 2.2;
+            var count = end;
+            var progress = start;
+            var step = end < start ? -0.01 : 0.01;
+
+//Define the circle
+            var circle = d3.arc()
+                .startAngle(0)
+                .innerRadius(radius)
+                .outerRadius(radius - border);
+
+//setup SVG wrapper
+            var svg = d3.select(wrapper)
+                .append('svg')
+                .attr('width', boxSize)
+                .attr('height', boxSize);
+
+// ADD Group container
+            var g = svg.append('g')
+                .attr('transform', 'translate(' + boxSize / 2 + ',' + boxSize / 2 + ')');
+
+//Setup track
+            var track = g.append('g').attr('class', 'radial-progress');
+            track.append('path')
+                .attr('class', 'radial-progress__background')
+                .attr('fill', colours.track)
+                .attr('stroke', colours.stroke)
+                .attr('stroke-width', strokeSpacing + 'px')
+                .attr('d', circle.endAngle(endAngle));
+
+//Add colour fill
+            var value = track.append('path')
+                .attr('class', 'radial-progress__value')
+                .attr('fill', colours.fill)
+                .attr('stroke', colours.stroke)
+                .attr('stroke-width', strokeSpacing + 'px');
+
+//Add text value
+            var numberText = track.append('text')
+                .attr('class', 'radial-progress__text')
+                .attr('fill', colours.text)
+                .attr('text-anchor', 'middle')
+                .attr('dy', '.5rem');
+
+            function update(progress) {
+                //update position of endAngle
+                value.attr('d', circle.endAngle(endAngle * progress));
+                //update text value
+                numberText.text(formatText(progress));
+            }
+
+            (function iterate() {
+                //call update to begin animation
+                update(progress);
+                if (count > 0) {
+                    //reduce count till it reaches 0
+                    count--;
+                    //increase progress
+                    progress += step;
+                    //Control the speed of the fill
+                    setTimeout(iterate, 10);
+                }
+            })();
+        },
         getPresenceRange: function (minEpochTime, maxEpochTime) {
 
             //Axios call
@@ -141,16 +251,107 @@ const app = new Vue({
 
         },
         renderGraphs: function () {
-
+            d3.selectAll("svg").remove();
             this.renderPresenceGraph();
+            this.renderCurrentDayAverageGraph();
+            this.renderRadialGraph();
+
+        },
+        renderCurrentDayAverageGraph: function () {
+
+            this.currentDayAverages.then(function (data) {
+
+                let tileWidth = $('#presence_average').parent().width();
+                let tileHeight = $('#presence_average').parent().height();
+
+                // set margins
+                let margin = {top: 20, right: 10, bottom: 25, left: 25},
+                    width = tileWidth - margin.left - margin.right,
+                    height = tileHeight - margin.top - margin.bottom;
+
+
+                // set the scales
+                let x = d3.scaleBand()
+                    .range([0, width])
+                    .padding(0.01);
+
+                let y = d3.scaleLinear()
+                    .range([height, 0]);
+
+                let presenceObjects = [];
+
+                for (var i = 0; i < data.length; i++) {
+                    presenceObjects.push(JSON.parse(data[i]))
+                }
+
+                let averageExtent = d3.extent(presenceObjects, function (d) {
+                    return d.avg_amount_of_users / 1000;
+                });
+
+                let svg = d3.select("#presence_average").append('svg')
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform",
+                        "translate(" + margin.left + "," + margin.top + ")");
+
+                x.domain(presenceObjects.map(function (d) {
+                    return d._id;
+                }));
+
+                y.domain(averageExtent);
+
+                let bars = svg.selectAll(".bar")
+                    .data(presenceObjects)
+                    .enter().append("rect")
+                    .attr("class", "bar")
+                    .attr("x", function (d) {
+                        return x(d._id);
+                    })
+                    .style("fill", "steelblue")
+                    .attr("width", x.bandwidth())
+                    .attr("y", function (d) {
+                        return y(d.avg_amount_of_users / 1000);
+                    })
+                    .attr("height", 0);
+
+
+                bars.transition()
+                    .duration(1000)
+                    .attr("height", function (d) {
+                        return (height - y(d.avg_amount_of_users / 1000));
+                    });
+
+                // add the x Axis
+                svg.append("g")
+                    .attr("transform", "translate(0," + height + ")")
+                    .attr("class", "axis")
+                    .call(d3.axisBottom(x))
+                    .selectAll("text")
+                    .style("text-anchor", "middle")
+                    .style("text-anchor", "end")
+                    .attr("dx", "-.8em")
+                    .attr("dy", ".15em")
+                    .attr("transform", function (d) {
+                        return "rotate(-90)"
+                    });
+                // add the y Axis
+                svg.append("g")
+                    .attr("class", "axis")
+                    .call(d3.axisLeft(y))
+                    .selectAll("text")
+
+
+                svg.selectAll(".bar").exit().remove();
+
+            });
 
         },
         renderPresenceGraph: function (width, height) {
 
             var context = this;
 
-            // remove current svg
-            d3.select("svg").remove();
+
 
             let currentHour = context.getCurrentHour();
             let date = new Date(0);
@@ -158,8 +359,8 @@ const app = new Vue({
             let timeString = date.toLocaleString();
 
             // get current with and height of tile
-            let tileWidth = $('#presence_actual').parent().parent().width();
-            let tileHeight = $('#presence_actual').parent().parent().height();
+            let tileWidth = $('#presence_actual').parent().width();
+            let tileHeight = $('#presence_actual').parent().height();
 
             this.sixHourDeviationFromActualTimeData.then(function (data) {
 
@@ -184,7 +385,6 @@ const app = new Vue({
                     .attr("opacity", 0);
 
 
-
                 // get max amount of presence
                 let maximalBuildingPresence = d3.max(data, function (d) {
                     if (d.amountOfUsers !== null) {
@@ -194,7 +394,7 @@ const app = new Vue({
                     }
                 });
 
-                let amountOfUsers = function(d) {
+                let amountOfUsers = function (d) {
                     if (d.amountOfUsers === null) {
                         return d.prediction.amountOfUsers;
                     } else {
@@ -274,7 +474,7 @@ const app = new Vue({
                     })
 
 
-                    bars.transition()
+                bars.transition()
                     .duration(1000)
                     .attr("height", function (d) {
                         if (d.amountOfUsers === null) {
@@ -304,7 +504,7 @@ const app = new Vue({
                     .style("text-anchor", "end")
                     .attr("dx", "-.8em")
                     .attr("dy", ".15em")
-                    .attr("transform", function(d) {
+                    .attr("transform", function (d) {
                         return "rotate(-90)"
                     });
 
@@ -315,7 +515,7 @@ const app = new Vue({
                         date.setUTCSeconds(d.timeStamp);
                         date = date.toLocaleString();
                         return x(date);
-                    }            )
+                    })
                     .y(function (d) {
                         return yTemperature(d.externSensor.temperature);
                     })
@@ -355,6 +555,7 @@ const app = new Vue({
                     .call(d3.axisRight(yTemperature))
                     .selectAll("text")
                     .style("text-anchor", "start");
+
 
                 svg.selectAll(".bar").exit().remove();
             });
