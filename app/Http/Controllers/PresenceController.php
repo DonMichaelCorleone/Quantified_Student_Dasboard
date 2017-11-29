@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Presence as Presence;
+use Illuminate\Support\Facades\DB;
 
 class PresenceController extends Controller
 {
@@ -30,7 +31,7 @@ class PresenceController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  \Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
@@ -41,20 +42,20 @@ class PresenceController extends Controller
     /**
      * Display the specified resource.
      *
-     * @param  int  $id
+     * @param  int $id
      * @return \Illuminate\Http\Response
      */
-    public function show(Request $request,$timeStamp)
+    public function show(Request $request, $timeStamp)
     {
         $timeStamp = intval($timeStamp);
-        $presence =  Presence::where('timeStamp',$timeStamp )->get();
+        $presence = Presence::where('timeStamp', $timeStamp)->get();
         return $presence;
     }
 
     /**
      * Show the form for editing the specified resource.
      *
-     * @param  int  $id
+     * @param  int $id
      * @return \Illuminate\Http\Response
      */
     public function edit($id)
@@ -65,8 +66,8 @@ class PresenceController extends Controller
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
+     * @param  \Illuminate\Http\Request $request
+     * @param  int $id
      * @return \Illuminate\Http\Response
      */
     public function update(Request $request, $id)
@@ -77,7 +78,7 @@ class PresenceController extends Controller
     /**
      * Remove the specified resource from storage.
      *
-     * @param  int  $id
+     * @param  int $id
      * @return \Illuminate\Http\Response
      */
     public function destroy($id)
@@ -85,10 +86,19 @@ class PresenceController extends Controller
         //
     }
 
+    public function getDay(request $request)
+    {
+        $weekday = $request->input("weekday");
+        $result = Presence::where('date.weekday', intval($weekday))
+            ->groupBy('$date.hour')
+            ->get();
+        return $result;
+    }
+
     /**
      * Remove the specified resource from storage.
      *
-     * @param  int  $id
+     * @param  int $id
      * @return \Illuminate\Http\Response
      */
     public function getRange(Request $request)
@@ -96,9 +106,64 @@ class PresenceController extends Controller
 
         $minDateRange = $request->input('minDate');
         $maxDateRange = $request->input('maxDate');
-        $presenceData =   Presence::whereBetween('timeStamp', [intval($minDateRange), intval($maxDateRange)])
+        $presenceData = Presence::whereBetween('timeStamp', [intval($minDateRange), intval($maxDateRange)])
             ->get();
         return $presenceData;
+    }
+
+    public function getDayAverage(Request $request)
+    {
+        $requestedDay = $request->input('day');
+
+        $cursor = Presence::raw()->aggregate([
+            [ '$match' =>  ["date.weekday"=> 2 ] ],
+            ['$group' =>
+                ['_id' => '$date.hour',
+                    'avg_amount_of_users' => ['$avg' => '$amountOfUsers'],
+                    'avg_temperature' => ['$avg' => '$externSensor.temperature'],
+                    'avg_humidity' => ['$avg' => '$externSensor.humidity'],
+                    'avg_cloud_cover' => ['$avg' => '$externSensor.cloudCover'],
+                    'avg_visibility' => ['$avg' => '$externSensor.visibility'],
+                    'avg_windspeed' => ['$avg' => '$externSensor.windSpeed'],
+                    'avg_precip_intensity' => ['$avg' => '$externSensor.precipIntensity'],
+                    'avg_precip_probability' => ['$avg' => '$externSensor.precipProbability'],
+                    'avg_gas_usage' => ['$avg' => '$internSensor.gasUsage'],
+                    'avg_light_intensity' => ['$avg' => '$internSensor.lightIntensity']
+                ]
+            ],
+            [ '$sort' => ['_id' => 1]]
+        ]);
+
+        $presenceCollection = [];
+
+        foreach ( $cursor as $record ) {
+            $presence = json_encode($record);
+            array_push($presenceCollection, $presence);
+            ;};
+
+        var_dump($presenceCollection);
+//        //Iterate your cursor
+//        $current = $cursor;
+//        do {
+//            var_dump($current); //Process each element
+//        } while (!($current = $cursor->count()));
+//            ['$group' =>
+//                ['_id' => '$name', 'count' => ['$sum' => 1]]
+//            ],
+//            ['$sort' => ['count' => -1]],
+//            ['$limit' => 30],
+//            ['$project' => ['_id' => 0,
+//                'text' => '$_id',
+//                'size' => '$count',
+//            ]
+//            ],
+//        ]);
+
+
+
+//        return $result;
+
+        //        return DB::collection('prescence')->where('date.weekday' , intval($requestedDay))->groupBy("date.hour")->get();
     }
 
 }

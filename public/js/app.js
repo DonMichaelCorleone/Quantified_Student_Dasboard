@@ -10211,9 +10211,9 @@ module.exports = __webpack_require__(500);
  * building robust, powerful web applications using Vue and Laravel.
  */
 
-__webpack_require__(182);
+/*jshint esversion: 6 */
 
-var distinctWeatherTypes = ["Mostly Cloudy", "Partly Cloudy", "Light Rain", "Rain", "Drizzle", "Clear", "Overcast", "Foggy", "Light Rain and Breezy", "Rain and Breezy", "Breezy and Mostly Cloudy", "Drizzle and Breezy", "Breezy", "Breezy and Partly Cloudy", "Breezy and Overcast"];
+__webpack_require__(182);
 
 /**
  * Next, we will create a fresh Vue application instance and attach it to
@@ -10228,14 +10228,17 @@ var app = new Vue({
         pastHourPresenceR1: 0,
         PastMonthRecords: 0,
         comingHour: 0,
-        comingHourPredictionObj: 0
+        comingHourPredictionObj: 0,
+        currentHour: 0
 
     },
     created: function created() {
         this.loadData();
         this.ready();
-        this.renderGraphs();
         this.startTime();
+    },
+    mounted: function mounted() {
+        this.renderGraphs();
     },
     methods: {
         ready: function ready() {
@@ -10245,7 +10248,6 @@ var app = new Vue({
             setInterval(function () {
                 this.startTime();
             }.bind(this), 1000);
-
             window.addEventListener("resize", this.renderPresenceGraph);
         },
         checkTime: function checkTime(i) {
@@ -10255,23 +10257,28 @@ var app = new Vue({
             return i;
         },
         startTime: function startTime() {
+
             var today = new Date();
             var h = today.getHours();
             var m = today.getMinutes();
             var s = today.getSeconds();
-            // add a zero in front of numbers<10
+
             m = this.checkTime(m);
             s = this.checkTime(s);
+
             document.getElementById('timer').innerHTML = h + ":" + m + ":" + s;
+
             return today;
         },
         loadData: function loadData() {
+
             this.getSixHourDeviationFromActualTimeData();
             this.getCurrentPresence();
             this.getPastMonthRecords();
             this.getComingHour();
         },
         getSixHourDeviationFromActualTimeData: function getSixHourDeviationFromActualTimeData() {
+
             var curHour = this.getCurrentHour();
             var range = 3600 * 6;
             var sixHoursFuture = curHour + range;
@@ -10279,16 +10286,20 @@ var app = new Vue({
             this.sixHourDeviationFromActualTimeData = this.getPresenceRange(sixHoursPast, sixHoursFuture);
         },
         getPastMonthRecords: function getPastMonthRecords() {
+
             var d = new Date();
             var curTime = Math.round(d.getTime() / 1000);
-            d.setMonth(d.getMonth() - 1);
             var pastMonthEpoch = Math.round(d.getTime() / 1000);
+
+            d.setMonth(d.getMonth() - 1);
             this.PastMonthRecords = this.getPresenceRange(pastMonthEpoch, curTime);
         },
         getCurrentHour: function getCurrentHour() {
+
             var d = new Date();
             var seconds = Math.round(d.getTime() / 1000);
             var remainder = seconds % 3600;
+
             seconds = seconds - remainder;
             return seconds;
         },
@@ -10306,8 +10317,11 @@ var app = new Vue({
             return data;
         }),
         getComingHour: function getComingHour() {
+
             var context = this;
-            var comingHour = this.getCurrentHour() + 3600;
+            var comingHour = context.getCurrentHour() + 3600;
+
+            //Axios call
             axios.get('api/presence/' + comingHour).then(function (response) {
                 context.comingHour = response.data[0];
                 context.comingHourPredictionObj = response.data[0].prediction;
@@ -10315,39 +10329,63 @@ var app = new Vue({
             });
         },
         getCurrentPresence: function getCurrentPresence() {
+
             var context = this;
             var curHour = this.getCurrentHour();
+
+            //Axios call
             axios.get('api/presence/' + curHour).then(function (response) {
                 context.pastHourPresenceR1 = context.currentPresenceR1;
                 context.currentPresenceR1 = response.data[0].amountOfUsers;
+                context.currentHourWeather = response.data[0].externSensor;
             });
         },
         getPresenceRange: function getPresenceRange(minEpochTime, maxEpochTime) {
+
+            //Axios call
             var result = axios.post('api/presence/getRange', { minDate: minEpochTime, maxDate: maxEpochTime }).then(function (response) {
                 return response.data;
             });
             return result;
         },
         renderGraphs: function renderGraphs() {
+
             this.renderPresenceGraph();
         },
         renderPresenceGraph: function renderPresenceGraph(width, height) {
 
             var context = this;
+
+            // remove current svg
             d3.select("svg").remove();
 
             var currentHour = context.getCurrentHour();
-            console.log(currentHour);
-
             var date = new Date(0);
             date.setUTCSeconds(currentHour);
-            var timeString = date.toLocaleTimeString();
+            var timeString = date.toLocaleString();
+
+            // get current with and height of tile
+            var tileWidth = $('#presence_actual').parent().parent().width();
+            var tileHeight = $('#presence_actual').parent().parent().height();
 
             this.sixHourDeviationFromActualTimeData.then(function (data) {
 
-                var tileWidth = $('#presence_actual').parent().parent().width();
-                var tileHeight = $('#presence_actual').parent().parent().height();
+                // set margins
+                var margin = { top: 20, right: 40, bottom: 30, left: 40 },
+                    width = tileWidth - margin.left - margin.right,
+                    height = tileHeight - margin.top - margin.bottom;
 
+                // set the scales
+                var x = d3.scaleBand().range([0, width]).padding(0.01);
+
+                var y = d3.scaleLinear().range([height, 0]);
+
+                var yTemperature = d3.scaleLinear().range([height, 0]);
+
+                // apply toolbox
+                var toolbox = d3.selectAll("#toolBox").append("div").attr("opacity", 0);
+
+                // get max amount of presence
                 var maximalBuildingPresence = d3.max(data, function (d) {
                     if (d.amountOfUsers !== null) {
                         return d.amountOfUsers;
@@ -10356,31 +10394,29 @@ var app = new Vue({
                     }
                 });
 
+                var amountOfUsers = function amountOfUsers(d) {
+                    if (d.amountOfUsers === null) {
+                        return d.prediction.amountOfUsers;
+                    } else {
+                        return d.amountOfUsers;
+                    }
+                };
+
+                // get max temperature
                 var maxTemperature = d3.max(data, function (d) {
                     return d.externSensor.temperature;
                 });
-                // set the dimensions and margins of the graph
-                var margin = { top: 20, right: 40, bottom: 30, left: 40 },
-                    width = tileWidth - margin.left - margin.right,
-                    height = tileHeight - margin.top - margin.bottom;
 
-                // set the ranges
-                var x = d3.scaleBand().range([0, width]).padding(0.01);
-
-                var y = d3.scaleLinear().range([height, 0]);
-
-                var yTemperature = d3.scaleLinear().range([height, 0]);
-                // append the svg object to the body of the page
-                // append a 'group' element to 'svg'
-                // moves the 'group' element to the top left margin
+                // append the svg
                 var svg = d3.select("#presence_actual").append("svg").attr("width", width + margin.left + margin.right).attr("height", height + margin.top + margin.bottom).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-                //Scale the range of the data in the domains
+                // bind data to scale
                 x.domain(data.map(function (d) {
                     var date = new Date(0);
                     date.setUTCSeconds(d.timeStamp);
-                    return date.toLocaleTimeString();
+                    return date.toLocaleString();
                 }));
+
                 y.domain([0, maximalBuildingPresence]);
 
                 yTemperature.domain([d3.min(data, function (d) {
@@ -10398,17 +10434,27 @@ var app = new Vue({
                 var getX = function getX(d) {
                     var date = new Date(0);
                     date.setUTCSeconds(d.timeStamp);
-                    date = date.toLocaleTimeString();
+                    date = date.toLocaleString();
                     return x(date);
                 };
 
                 var bars = svg.selectAll(".bar").data(data).enter().append("rect").attr("class", "bar").style("fill", function (d) {
                     if (d.amountOfUsers === null) {
-                        console.log(d);return "steelblue";
+                        return "#646723";
                     } else {
-                        return "red";
+                        return "steelblue";
                     }
-                }).attr("x", getX).attr("width", x.bandwidth()).attr("y", getY).attr("height", function (d) {
+                }).attr("x", getX).attr("width", x.bandwidth()).attr("y", getY).attr("height", 0).on("mouseover", function (d) {
+                    toolbox.transition().style("opacity", 1);
+
+                    toolbox.html("<h1>" + amountOfUsers(d) + "</h1>");
+                    d3.select(this).style("opacity", 0.5);
+                }).on("mouseout", function (d) {
+                    toolbox.transition().style("opacity", 0);
+                    d3.select(this).style("opacity", 1);
+                });
+
+                bars.transition().duration(1000).attr("height", function (d) {
                     if (d.amountOfUsers === null) {
                         return height - y(d.prediction.amountOfUsers);
                     } else {
@@ -10423,15 +10469,22 @@ var app = new Vue({
                 });
 
                 // add the x Axis
-                svg.append("g").attr("transform", "translate(0," + height + ")").attr("class", "axis").call(d3.axisBottom(x)).selectAll("text").style("text-anchor", "middle");
+                svg.append("g").attr("transform", "translate(0," + height + ")").attr("class", "axis").call(d3.axisBottom(x)).selectAll("text").style("text-anchor", "middle").style("text-anchor", "end").attr("dx", "-.8em").attr("dy", ".15em").attr("transform", function (d) {
+                    return "rotate(-90)";
+                });
 
                 // define the line
-                var valueline = d3.line().x(getX).y(function (d) {
-                    console.log(d);return yTemperature(d.externSensor.temperature);
+                var valueline = d3.line().x(function (d) {
+                    var date = new Date(0);
+                    date.setUTCSeconds(d.timeStamp);
+                    date = date.toLocaleString();
+                    return x(date);
+                }).y(function (d) {
+                    return yTemperature(d.externSensor.temperature);
                 });
 
                 // Add the valueline path.
-                svg.append("path").data([data]).attr("class", "line").attr("d", valueline);
+                var path = svg.append("path").data([data]).attr("class", "line").attr("d", valueline).attr('pointer-events', 'visibleStroke');
 
                 svg.append("line") // attach a line
                 .style("stroke", "white") // colour the line

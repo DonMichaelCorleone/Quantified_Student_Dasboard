@@ -27,4 +27,9 @@ Route::get('/presence/latest' , function(Request $request) {
     return Presence::orderBy('timeStamp', 'desc')->take(1)->get();
 });
 
+Route::post('/presence/getDayAVG' , 'PresenceController@getDay');
+
 Route::get('/presence/{timeStamp}' , 'PresenceController@show');
+
+Route::post('/presence/getDayAverage' , 'PresenceController@getDayAverage');
+

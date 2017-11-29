@@ -18,7 +18,9 @@ return [
     /*
      * Register the Mongodb database as default
      */
-    'default' => env('DB_CONNECTION', 'mongodb'),
+//    'default' => env('DB_CONNECTION', 'mongodb'),
+
+    'default' => 'mongodb',
 
     /*
     |--------------------------------------------------------------------------

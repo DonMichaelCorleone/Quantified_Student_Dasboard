@@ -15,8 +15,8 @@
         <style>
             .line {
                 fill: none;
-                stroke: steelblue;
-                stroke-width: 2px;
+                stroke: white;
+                stroke-width: 3px;
             }
             .panelBody text {
                 fill: white;
@@ -116,6 +116,10 @@
             }
             .small {
                 min-height:200px;
+            }/* Style the dots by assigning a fill and stroke */
+            .dot {
+                fill: #ffab00;
+                stroke: #fff;
             }
         </style>
     </head>
@@ -170,7 +174,7 @@
                             <div class="col tile dashboard-element">
                                 <div class="title">Weather</div>
                                 <div class="panelBody">
-                                    <h1></h1>
+                                    <h1 v-if="comingHour.externSensor">@{{ comingHour.externSensor.summary }}</h1>
                                 </div>
                             </div>
 
@@ -178,10 +182,17 @@
                         </div>
                     <div class="row row-dashboard small">
                         <div class="col tile dashboard-element">
+                            <div class="title">Diagram toolbox</div>
+                            <div class="panelBody">
+                                <div id="toolBox"></div>
+                            </div>
 
                         </div>
                         <div class="col tile dashboard-element">
                             <div class="title">Alert</div>
+                            <div class="'panelbody">
+                                <h1 v-if='comingHour.externSensor'>@{{ comingHour.externSensor.alert.description }}</h1>
+                            </div>
                         </div>
                         <div class="col tile dashboard-element">
                             <div class="title">Accuracy</div>
