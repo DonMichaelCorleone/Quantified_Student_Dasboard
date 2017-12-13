@@ -16,7 +16,7 @@
             .line {
                 fill: none;
                 stroke: white;
-                stroke-width: 3px;
+                stroke-width: 2px;
             }
             .panelBody text {
                 fill: white;
@@ -29,10 +29,11 @@
             }
 
             .axis path,
-            .axis line {
-                shape-rendering: crispEdges;
-            }
+            /*.axis line {*/
+                /*shape-rendering: crispEdges;*/
+            /*}*/
             .axis *{
+                color: white;
                 fill: white;
             }
 
@@ -64,7 +65,7 @@
                 padding-bottom: -15px;
             }
             .green {
-                border-color: transparent transparent #2b9432 transparent;
+                border-color: transparent transparent #646723 transparent;
             }
             .red {
                 border-color: transparent transparent darkred transparent;
@@ -189,7 +190,7 @@
                             <div class="col tile dashboard-element">
                                 <div class="title">Weather</div>
                                 <div class="panelBody">
-                                    <h1 v-if="comingHour.externSensor">@{{ comingHour.externSensor.summary }}</h1>
+                                    <h1 v-if="currentHourWeather">@{{ currentHourWeather.summary }}</h1>
                                 </div>
                             </div>
 
@@ -213,7 +214,8 @@
                         <div class="col tile dashboard-element">
                             <div class="title">Alert</div>
                             <div class="'panelbody">
-                                <h1 v-if='comingHour.externSensor'>@{{ comingHour.externSensor.alert.description }}</h1>
+                                <h1 v-if='currentHourWeather.alert && currentHourWeather.alert.description  !== ""'>@{{ currentHourWeather.alert.description }}</h1>
+                                <h1 v-else>No Alerts</h1>
                             </div>
                         </div>
                         <div class="col tile dashboard-element">
@@ -222,7 +224,7 @@
                                  data-percentage="99"
                                  data-track-width="12"
                                  data-track-colour="555555"
-                                 data-fill-colour="00C0FF"
+                                 data-fill-colour="4682b4"
                                  data-text-colour="00C0FF"
                                  data-stroke-spacing="4"
                                  id="accuracy_radial"></div>

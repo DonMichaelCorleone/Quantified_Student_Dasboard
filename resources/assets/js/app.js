@@ -7,9 +7,10 @@
 /*jshint esversion: 6 */
 
 require('./bootstrap');
-
+require('./TimeHandler');
 
 var weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', ' thursday', 'friday', 'saturday'];
+
 /**
  * Next, we will create a fresh Vue application instance and attach it to
  * the page. Then, you may begin adding components to this application
@@ -26,11 +27,13 @@ const app = new Vue({
         comingHourPredictionAccuracy: 0,
         comingHourPredictionObj: 0,
         currentHour: 0,
+        currentHourWeather: 0,
         currentDay: weekdays[new Date().getDay()],
         currentDayAverages: 0
 
     },
     created: function () {
+        console.log("created");
         this.loadData();
         this.ready();
         this.startTime();
@@ -60,16 +63,19 @@ const app = new Vue({
             var h = today.getHours();
             var m = today.getMinutes();
             var s = today.getSeconds();
+            var d = today.getDate();
+            var M = today.getMonth() + 1;
+            var y = today.getFullYear();
+
 
             m = this.checkTime(m);
             s = this.checkTime(s);
 
-            document.getElementById('timer').innerHTML = h + ":" + m + ":" + s;
+            document.getElementById('timer').innerHTML = "<p>" +  h + ":" + m + ":" + s + "</p><p>" + d + "-" + M + "-" + y + "</p>";
 
             return today;
         },
         loadData: function () {
-
             this.getSixHourDeviationFromActualTimeData();
             this.getCurrentPresence();
             this.getPastMonthRecords();
@@ -80,7 +86,7 @@ const app = new Vue({
         getSixHourDeviationFromActualTimeData: function () {
 
             let curHour = this.getCurrentHour();
-            let range = 3600 * 12;
+            let range = 3600 * 6;
             let sixHoursFuture = curHour + range;
             let sixHoursPast = curHour - range;
             this.sixHourDeviationFromActualTimeData = this.getPresenceRange(sixHoursPast, sixHoursFuture);
@@ -106,7 +112,8 @@ const app = new Vue({
             return seconds;
         },
         data: function () {
-            return data;
+            var context =  this;
+            return context.data;
         },
         getCurrentDayAverages: function (day) {
 
@@ -114,26 +121,24 @@ const app = new Vue({
 
             context.currentDayAverages = axios.post('api/presence/getDayAverage', {day: day})
                 .then(function (response) {
-                    // context.currentDayAverages = response.data;
                     return response.data;
                 });
 
         },
         getComingHour: function () {
-
+            console.log("getcominghour called:")
             let context = this;
             let comingHour = (context.getCurrentHour() + 3600);
 
             //Axios call
-            this.comingHour =  axios.get('api/presence/' + comingHour)
+            axios.get('api/presence/' + comingHour)
                 .then(function (response) {
+                    console.log("Got response : " ,  response.data[0].prediction);
                     context.comingHourPredictionObj = response.data[0].prediction;
                     context.comingHourPredictionObj.accuracy = response.data[0].prediction.accuracy.toFixed(2);
                     context.comingHourPredictionAccuracy = response.data[0].prediction.accuracy;
-                    return response.data[0];
+                    context.comingHour = response.data[0].date.hour;
                 });
-
-            return this.comingHour;
 
         },
         getCurrentPresence: function () {
@@ -161,7 +166,6 @@ const app = new Vue({
             var start = 0;
 
             let accuracy = context.comingHourPredictionAccuracy;
-            console.log(accuracy);
             var end = accuracy;
 
             var colours = {
@@ -181,23 +185,34 @@ const app = new Vue({
             var progress = start;
             var step = end < start ? -0.01 : 0.01;
 
-//Define the circle
+            /**
+             * Define the circle
+             */
             var circle = d3.arc()
                 .startAngle(0)
                 .innerRadius(radius)
                 .outerRadius(radius - border);
 
-//setup SVG wrapper
+            /**
+             * setup SVG wrapper
+             */
+
             var svg = d3.select(wrapper)
                 .append('svg')
                 .attr('width', boxSize)
                 .attr('height', boxSize);
 
-// ADD Group container
+            /**
+             *  ADD Group container
+             */
+
             var g = svg.append('g')
                 .attr('transform', 'translate(' + boxSize / 2 + ',' + boxSize / 2 + ')');
 
-//Setup track
+            /**
+             * Setup track
+             */
+
             var track = g.append('g').attr('class', 'radial-progress');
             track.append('path')
                 .attr('class', 'radial-progress__background')
@@ -243,18 +258,64 @@ const app = new Vue({
         getPresenceRange: function (minEpochTime, maxEpochTime) {
 
             //Axios call
-            let result = axios.post('api/presence/getRange', {minDate: minEpochTime, maxDate: maxEpochTime})
-                .then(function (response) {
-                    return response.data;
+            var result = axios.post('api/presence/getRange', {minDate: minEpochTime, maxDate: maxEpochTime})
+                .then(response => {
+                    return response;
                 });
             return result;
 
         },
         renderGraphs: function () {
             d3.selectAll("svg").remove();
+            this.renderGraph('#presence_average', this.currentDayAverages, function(data){
+                let presenceObjects = [];
+
+                for (var i = 0; i < data.length; i++) {
+                    presenceObjects.push(JSON.parse(data[i]));
+                }
+
+                return presenceObjects;
+            });
             this.renderPresenceGraph();
             this.renderCurrentDayAverageGraph();
             this.renderRadialGraph();
+
+        },
+        renderGraph: function(element,promiseobj, callback){
+
+            let tileWidth = $(element).parent().width();
+            let tileHeight = $(element).parent().height();
+
+            // set margins
+            let margin = {top: 20, right: 10, bottom: 25, left: 25},
+                width = tileWidth - margin.left - margin.right,
+                height = tileHeight - margin.top - margin.bottom;
+
+            // set the scales
+            let x = d3.scaleBand()
+                .range([0, width])
+                .padding(0.01);
+
+            let y = d3.scaleLinear()
+                .range([height, 0]);
+
+            if(callback) {
+
+                let data = promiseobj.then(function(data){
+                    var x;
+                    x = callback(data);
+                    // console.log(x);
+                    return x;
+                });
+                console.log(data);
+
+            }
+
+
+            // console.log('callback found, logging data : ' , data);
+
+
+
 
         },
         renderCurrentDayAverageGraph: function () {
@@ -268,7 +329,6 @@ const app = new Vue({
                 let margin = {top: 20, right: 10, bottom: 25, left: 25},
                     width = tileWidth - margin.left - margin.right,
                     height = tileHeight - margin.top - margin.bottom;
-
 
                 // set the scales
                 let x = d3.scaleBand()
@@ -333,7 +393,7 @@ const app = new Vue({
                     .attr("dx", "-.8em")
                     .attr("dy", ".15em")
                     .attr("transform", function (d) {
-                        return "rotate(-90)"
+                        return "rotate(-90)";
                     });
                 // add the y Axis
                 svg.append("g")
@@ -350,10 +410,7 @@ const app = new Vue({
         renderPresenceGraph: function (width, height) {
 
             var context = this;
-
-
-
-            let currentHour = context.getCurrentHour();
+            let currentHour = context.currentHour;
             let date = new Date(0);
             date.setUTCSeconds(currentHour);
             let timeString = date.toLocaleString();
@@ -363,11 +420,12 @@ const app = new Vue({
             let tileHeight = $('#presence_actual').parent().height();
 
             this.sixHourDeviationFromActualTimeData.then(function (data) {
+                var data = data.data;
 
                 // set margins
-                let margin = {top: 20, right: 40, bottom: 30, left: 40},
+                let margin = {top: 10, right: 30, bottom: 40, left: 40},
                     width = tileWidth - margin.left - margin.right,
-                    height = tileHeight - margin.top - margin.bottom;
+                    height = tileHeight + 100 - margin.top - margin.bottom;
 
                 // set the scales
                 let x = d3.scaleBand()
@@ -394,7 +452,7 @@ const app = new Vue({
                     }
                 });
 
-                let amountOfUsers = function (d) {
+                let renderToolbox = function (d) {
                     if (d.amountOfUsers === null) {
                         return d.prediction.amountOfUsers;
                     } else {
@@ -419,7 +477,7 @@ const app = new Vue({
                 x.domain(data.map(function (d) {
                     let date = new Date(0);
                     date.setUTCSeconds(d.timeStamp);
-                    return date.toLocaleString();
+                    return date.getHours().toString() + ":00";
                 }));
 
                 y.domain([0, maximalBuildingPresence]);
@@ -440,7 +498,7 @@ const app = new Vue({
                 let getX = function (d) {
                     let date = new Date(0);
                     date.setUTCSeconds(d.timeStamp);
-                    date = date.toLocaleString();
+                    date = date.getHours().toString() + ":00";
                     return x(date);
                 };
 
@@ -463,7 +521,7 @@ const app = new Vue({
                         toolbox.transition()
                             .style("opacity", 1);
 
-                        toolbox.html("<h1>" + amountOfUsers(d) + "</h1>");
+                        toolbox.html("<h1>" + renderToolbox(d) + "</h1>");
                         d3.select(this).style("opacity", 0.5);
 
                     })
@@ -505,7 +563,7 @@ const app = new Vue({
                     .attr("dx", "-.8em")
                     .attr("dy", ".15em")
                     .attr("transform", function (d) {
-                        return "rotate(-90)"
+                        return "rotate(-90)";
                     });
 
                 // define the line
@@ -513,7 +571,7 @@ const app = new Vue({
                     .x(function (d) {
                         var date = new Date(0);
                         date.setUTCSeconds(d.timeStamp);
-                        date = date.toLocaleString();
+                        date = date.getHours().toString() + ':00';
                         return x(date);
                     })
                     .y(function (d) {
